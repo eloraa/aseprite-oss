@@ -12,19 +12,27 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # --------------------
+      # Checkout source
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # --------------------
+      # Setup Ninja
       - name: Setup Ninja
         uses: aseprite/get-ninja@main
 
+      # --------------------
+      # Setup MSVC
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
+      # --------------------
+      # Cache Skia
       - name: Cache Skia
         uses: actions/cache@v3
         id: skia-cache
@@ -32,6 +40,8 @@ jobs:
           path: skia
           key: skia-${{ hashFiles('laf/misc/skia-url.sh') }}
 
+      # --------------------
+      # Download Skia if cache missed
       - name: Download Skia
         if: steps.skia-cache.outputs.cache-hit != 'true'
         shell: bash
@@ -42,6 +52,28 @@ jobs:
           curl -L -o "$skia_file" "$skia_url"
           unzip "$skia_file" -d skia
 
+      # --------------------
+      # Cache OpenSSL
+      - name: Cache OpenSSL
+        uses: actions/cache@v3
+        id: openssl-cache
+        with:
+          path: openssl
+          key: openssl-1_1_1u
+
+      # --------------------
+      # Download OpenSSL if cache missed
+      - name: Download OpenSSL DLLs
+        if: steps.openssl-cache.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          $url = "https://slproweb.com/download/Win64OpenSSL_Light-1_1_1u.exe"
+          $installer = "Win64OpenSSL.exe"
+          Invoke-WebRequest $url -OutFile $installer
+          Start-Process -FilePath $installer -ArgumentList "/silent /dir=$PWD/openssl" -Wait
+
+      # --------------------
+      # Cache build folder (CMake/Ninja outputs)
       - name: Cache build
         uses: actions/cache@v3
         id: build-cache
@@ -51,6 +83,8 @@ jobs:
           restore-keys: |
             build-${{ runner.os }}-
 
+      # --------------------
+      # Configure CMake
       - name: Configure CMake
         shell: bash
         run: |
@@ -62,17 +96,19 @@ jobs:
             -DSKIA_DIR=$(realpath skia) \
             -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-x64)
 
+      # --------------------
+      # Build Aseprite
       - name: Build Aseprite
         shell: bash
         run: cmake --build build --target aseprite
 
-      - name: Copy required DLLs
+      # --------------------
+      # Copy OpenSSL DLLs to build
+      - name: Copy OpenSSL DLLs
         shell: powershell
         run: |
-          Copy-Item "C:\deps\openssl\bin\libcrypto-1_1-x64.dll" -Destination build/bin/
-          Copy-Item "C:\deps\openssl\bin\libssl-1_1-x64.dll" -Destination build/bin/
-          Copy-Item "C:\Windows\System32\vcruntime140.dll" -Destination build/bin/ -ErrorAction SilentlyContinue
-          Copy-Item "C:\Windows\System32\msvcp140.dll" -Destination build/bin/ -ErrorAction SilentlyContinue
+          Copy-Item "$PWD/openssl/bin/libcrypto-1_1-x64.dll" -Destination build/bin/
+          Copy-Item "$PWD/openssl/bin/libssl-1_1-x64.dll" -Destination build/bin/
 
       - name: Zip build folder
         shell: powershell
