@@ -47,9 +47,7 @@ jobs:
         id: build-cache
         with:
           path: build
-          key: build-${{ runner.os }}-RelWithDebInfo
-          restore-keys: |
-            build-${{ runner.os }}-
+          key: build-${{ github.event.inputs.version }}
 
       - name: Configure & Build Aseprite
         if: steps.build-cache.outputs.cache-hit != 'true'
