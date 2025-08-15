@@ -12,27 +12,19 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # --------------------
-      # Checkout source
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # --------------------
-      # Setup Ninja
       - name: Setup Ninja
         uses: aseprite/get-ninja@main
 
-      # --------------------
-      # Setup MSVC
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      # --------------------
-      # Cache Skia
       - name: Cache Skia
         uses: actions/cache@v3
         id: skia-cache
@@ -50,23 +42,10 @@ jobs:
           curl -L -o "$skia_file" "$skia_url"
           unzip "$skia_file" -d skia
 
-      # --------------------
-      # Cache OpenSSL
-      - name: Cache OpenSSL
-        uses: actions/cache@v3
-        id: openssl-cache
-        with:
-          path: openssl
-          key: openssl-3_5_2
-
-      - name: Download OpenSSL DLLs
-        if: steps.openssl-cache.outputs.cache-hit != 'true'
+      - name: Install OpenSSL v1.1.1
         shell: powershell
         run: |
-          $url = "https://slproweb.com/download/Win64OpenSSL_Light-3_5_2.exe"
-          $installer = "Win64OpenSSL.exe"
-          Invoke-WebRequest $url -OutFile $installer
-          Start-Process -FilePath $installer -ArgumentList "/silent /dir=$PWD/openssl" -Wait
+          choco install openssl.light --version=1.1.1.2000 -y
 
       - name: Cache build folder
         uses: actions/cache@v3
@@ -77,8 +56,6 @@ jobs:
           restore-keys: |
             build-${{ runner.os }}-
 
-      # --------------------
-      # Configure CMake
       - name: Configure CMake
         shell: bash
         run: |
@@ -90,29 +67,23 @@ jobs:
             -DSKIA_DIR=$(realpath skia) \
             -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-x64)
 
-      # --------------------
-      # Build Aseprite
       - name: Build Aseprite
         shell: bash
         run: cmake --build build --target aseprite
 
-      # --------------------
-      # Copy OpenSSL DLLs
       - name: Copy OpenSSL DLLs to build
         shell: powershell
         run: |
-          Copy-Item "$PWD/openssl/bin/libcrypto-3-x64.dll" -Destination build/bin/
-          Copy-Item "$PWD/openssl/bin/libssl-3-x64.dll" -Destination build/bin/
+          $opensslPath = "$(Get-Command openssl).Source"
+          $opensslBin = Split-Path $opensslPath
+          Copy-Item "$opensslBin\libcrypto-1_1-x64.dll" -Destination build/bin/
+          Copy-Item "$opensslBin\libssl-1_1-x64.dll" -Destination build/bin/
 
-      # --------------------
-      # Zip build folder
       - name: Zip build folder
         shell: powershell
         run: |
           Compress-Archive -Path build/* -DestinationPath aseprite-win-${{ github.event.inputs.version }}.zip -Force
 
-      # --------------------
-      # Create GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
