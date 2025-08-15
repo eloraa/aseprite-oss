@@ -74,10 +74,9 @@ jobs:
       - name: Copy OpenSSL DLLs to build
         shell: powershell
         run: |
-          $opensslPath = "$(Get-Command openssl).Source"
-          $opensslBin = Split-Path $opensslPath
-          Copy-Item "$opensslBin\libcrypto-1_1-x64.dll" -Destination build/bin/
-          Copy-Item "$opensslBin\libssl-1_1-x64.dll" -Destination build/bin/
+          $opensslPath = "C:\Program Files\OpenSSL-Win64\bin"
+          Copy-Item "$opensslPath\libcrypto-1_1-x64.dll" -Destination build/bin/
+          Copy-Item "$opensslPath\libssl-1_1-x64.dll" -Destination build/bin/
 
       - name: Zip build folder
         shell: powershell
