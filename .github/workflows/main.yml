@@ -1,34 +1,57 @@
-name: Build and Release Aseprite
+name: Build Aseprite (Windows)
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.3.5)'
+        required: true
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
+    steps:
+      # --------------------
+      # Checkout source
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # --------------------
+      # Setup Ninja
+      - name: Setup Ninja
+        uses: aseprite/get-ninja@main
+
+      # --------------------
+      # Setup MSVC
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # --------------------
+      # Cache Skia
       - name: Cache Skia
         uses: actions/cache@v3
         id: skia-cache
         with:
           path: skia
-          key: skia-v1
+          key: skia-${{ hashFiles('laf/misc/skia-url.sh') }}
 
-      - name: Download and install Skia
+      - name: Download Skia
         if: steps.skia-cache.outputs.cache-hit != 'true'
-        shell: powershell
+        shell: bash
         run: |
-          $url = "https://skia.org/download/skia-win-x64.zip"
-          $zipFile = "skia.zip"
-          Invoke-WebRequest $url -OutFile $zipFile
-          Expand-Archive -Path $zipFile -DestinationPath skia
-          Remove-Item $zipFile
+          this_dir=$(cygpath "${{ github.workspace }}")
+          skia_url=$(source $this_dir/laf/misc/skia-url.sh | xargs)
+          skia_file=$(basename "$skia_url")
+          curl -L -o "$skia_file" "$skia_url"
+          unzip "$skia_file" -d skia
 
+      # --------------------
+      # Cache OpenSSL
       - name: Cache OpenSSL
         uses: actions/cache@v3
         id: openssl-cache
@@ -36,7 +59,7 @@ jobs:
           path: openssl
           key: openssl-3_5_2
 
-      - name: Download and install OpenSSL
+      - name: Download OpenSSL DLLs
         if: steps.openssl-cache.outputs.cache-hit != 'true'
         shell: powershell
         run: |
@@ -45,21 +68,58 @@ jobs:
           Invoke-WebRequest $url -OutFile $installer
           Start-Process -FilePath $installer -ArgumentList "/silent /dir=$PWD/openssl" -Wait
 
+      - name: Cache build folder
+        uses: actions/cache@v3
+        id: build-cache
+        with:
+          path: build
+          key: build-${{ runner.os }}-RelWithDebInfo
+          restore-keys: |
+            build-${{ runner.os }}-
+
+      # --------------------
+      # Configure CMake
+      - name: Configure CMake
+        shell: bash
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DLAF_BACKEND=skia \
+            -DENABLE_SCRIPTING=on \
+            -DENABLE_TESTS=OFF \
+            -DSKIA_DIR=$(realpath skia) \
+            -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-x64)
+
+      # --------------------
+      # Build Aseprite
       - name: Build Aseprite
+        shell: bash
+        run: cmake --build build --target aseprite
+
+      # --------------------
+      # Copy OpenSSL DLLs
+      - name: Copy OpenSSL DLLs to build
         shell: powershell
         run: |
-          # Your build commands here
-          # Example:
-          # .\build.bat
+          Copy-Item "$PWD/openssl/bin/libcrypto-3-x64.dll" -Destination build/bin/
+          Copy-Item "$PWD/openssl/bin/libssl-3-x64.dll" -Destination build/bin/
 
+      # --------------------
+      # Zip build folder
       - name: Zip build folder
         shell: powershell
         run: |
-          Compress-Archive -Path build\* -DestinationPath build.zip
+          Compress-Archive -Path build/* -DestinationPath aseprite-win-${{ github.event.inputs.version }}.zip -Force
 
-      - name: Create GitHub release
+      # --------------------
+      # Create GitHub Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build.zip
+          tag_name: v${{ github.event.inputs.version }}
+          name: Aseprite v${{ github.event.inputs.version }}
+          draft: false
+          prerelease: false
+          files: aseprite-win-${{ github.event.inputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
