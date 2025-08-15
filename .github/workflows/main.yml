@@ -42,11 +42,6 @@ jobs:
           curl -L -o "$skia_file" "$skia_url"
           unzip "$skia_file" -d skia
 
-      - name: Install OpenSSL v1.1.1
-        shell: powershell
-        run: |
-          choco install openssl --version=1.1.1.2000 -y
-
       - name: Cache build folder
         uses: actions/cache@v3
         id: build-cache
@@ -56,7 +51,8 @@ jobs:
           restore-keys: |
             build-${{ runner.os }}-
 
-      - name: Configure CMake
+      - name: Configure & Build Aseprite
+        if: steps.build-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           cmake -S . -B build -G Ninja \
@@ -66,17 +62,14 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DSKIA_DIR=$(realpath skia) \
             -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-x64)
-
-      - name: Build Aseprite
-        shell: bash
-        run: cmake --build build --target aseprite
+          cmake --build build --target aseprite
 
       - name: Copy OpenSSL DLLs to build
         shell: powershell
         run: |
-          $opensslPath = "C:/Program Files/OpenSSL"
-          Copy-Item "$opensslPath\libcrypto-1_1-x64.dll" -Destination build/bin/
-          Copy-Item "$opensslPath\libssl-1_1-x64.dll" -Destination build/bin/
+          $opensslBin = "C:\Program Files\OpenSSL\bin"
+          Copy-Item "$opensslBin\libcrypto-1_1-x64.dll" -Destination build/bin/
+          Copy-Item "$opensslBin\libssl-1_1-x64.dll" -Destination build/bin/
 
       - name: Zip build folder
         shell: powershell
