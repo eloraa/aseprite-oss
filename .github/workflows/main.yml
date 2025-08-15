@@ -49,12 +49,10 @@ jobs:
         shell: bash
         run: cmake --build build --target aseprite
 
-      - name: Prepare artifact
-        shell: bash
+      - name: Zip build folder
+        shell: powershell
         run: |
-          mkdir artifacts
-          cp build/bin/aseprite.exe artifacts/
-          cp -r build/bin/data artifacts/data
+          Compress-Archive -Path build/* -DestinationPath aseprite-win-${{ github.event.inputs.version }}.zip -Force
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -63,6 +61,6 @@ jobs:
           name: Aseprite v${{ github.event.inputs.version }}
           draft: false
           prerelease: false
-          files: artifacts/**
+          files: aseprite-win-${{ github.event.inputs.version }}.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
