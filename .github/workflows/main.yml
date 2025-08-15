@@ -49,6 +49,16 @@ jobs:
         shell: bash
         run: cmake --build build --target aseprite
 
+      - name: Copy required DLLs
+        shell: powershell
+        run: |
+          # OpenSSL DLLs
+          Copy-Item "C:\deps\openssl\bin\libcrypto-1_1-x64.dll" -Destination build/bin/
+          Copy-Item "C:\deps\openssl\bin\libssl-1_1-x64.dll" -Destination build/bin/
+          # Optional: Visual C++ runtime DLLs (if needed)
+          Copy-Item "C:\Windows\System32\vcruntime140.dll" -Destination build/bin/ -ErrorAction SilentlyContinue
+          Copy-Item "C:\Windows\System32\msvcp140.dll" -Destination build/bin/ -ErrorAction SilentlyContinue
+
       - name: Zip build folder
         shell: powershell
         run: |
@@ -63,4 +73,4 @@ jobs:
           prerelease: false
           files: aseprite-win-${{ github.event.inputs.version }}.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
