@@ -2,9 +2,9 @@ name: Build Aseprite (Windows)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     tags:
-      - 'v*' # Runs when you push a version tag like v1.3.5
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -27,11 +27,13 @@ jobs:
           choco install cmake ninja -y --installargs 'ADD_CMAKE_TO_PATH=System'
 
       - name: Download Skia prebuilt
-        run: |
-          curl -L -o skia.zip https://github.com/aseprite/skia/releases/download/m124-aseprite/skia-windows-Release-x64.zip
-          mkdir skia
-          tar -xf skia.zip -C skia
         shell: bash
+        run: |
+          set -e
+          echo "Downloading Skia for Windows..."
+          curl -f -L -o skia.zip https://github.com/aseprite/skia/releases/download/m124-aseprite/skia-windows-Release-x64.zip
+          mkdir skia
+          unzip -q skia.zip -d skia
 
       - name: Configure build
         shell: bash
