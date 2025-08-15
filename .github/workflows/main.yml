@@ -74,7 +74,7 @@ jobs:
       - name: Copy OpenSSL DLLs to build
         shell: powershell
         run: |
-          $opensslPath = "C:\Program Files\OpenSSL-Win64\bin"
+          $opensslPath = "C:/Program Files/OpenSSL"
           Copy-Item "$opensslPath\libcrypto-1_1-x64.dll" -Destination build/bin/
           Copy-Item "$opensslPath\libssl-1_1-x64.dll" -Destination build/bin/
 
