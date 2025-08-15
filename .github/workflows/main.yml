@@ -77,7 +77,7 @@ jobs:
       - name: Zip minimal bin folder
         shell: powershell
         run: |
-          Compress-Archive -Path build/bin/* -DestinationPath aseprite-win-bin-${{ github.event.inputs.version }}.zip -Force
+          Compress-Archive -Path build/bin/* -DestinationPath aseprite-win-${{ github.event.inputs.version }}.zip -Force
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
