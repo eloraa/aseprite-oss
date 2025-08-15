@@ -25,7 +25,15 @@ jobs:
         with:
           arch: x64
 
+      - name: Cache Skia
+        uses: actions/cache@v3
+        id: skia-cache
+        with:
+          path: skia
+          key: skia-${{ hashFiles('laf/misc/skia-url.sh') }}
+
       - name: Download Skia
+        if: steps.skia-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           this_dir=$(cygpath "${{ github.workspace }}")
@@ -33,6 +41,15 @@ jobs:
           skia_file=$(basename "$skia_url")
           curl -L -o "$skia_file" "$skia_url"
           unzip "$skia_file" -d skia
+
+      - name: Cache build
+        uses: actions/cache@v3
+        id: build-cache
+        with:
+          path: build
+          key: build-${{ runner.os }}-RelWithDebInfo
+          restore-keys: |
+            build-${{ runner.os }}-
 
       - name: Configure CMake
         shell: bash
@@ -52,10 +69,8 @@ jobs:
       - name: Copy required DLLs
         shell: powershell
         run: |
-          # OpenSSL DLLs
           Copy-Item "C:\deps\openssl\bin\libcrypto-1_1-x64.dll" -Destination build/bin/
           Copy-Item "C:\deps\openssl\bin\libssl-1_1-x64.dll" -Destination build/bin/
-          # Optional: Visual C++ runtime DLLs (if needed)
           Copy-Item "C:\Windows\System32\vcruntime140.dll" -Destination build/bin/ -ErrorAction SilentlyContinue
           Copy-Item "C:\Windows\System32\msvcp140.dll" -Destination build/bin/ -ErrorAction SilentlyContinue
 
