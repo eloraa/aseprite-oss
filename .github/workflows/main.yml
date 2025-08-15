@@ -62,17 +62,22 @@ jobs:
             -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-x64)
           cmake --build build --target aseprite
 
-      - name: Copy OpenSSL DLLs to build
+      - name: Copy OpenSSL DLLs
         shell: powershell
         run: |
           $opensslBin = "C:\Program Files\OpenSSL\bin"
           Copy-Item "$opensslBin\libcrypto-1_1-x64.dll" -Destination build/bin/
           Copy-Item "$opensslBin\libssl-1_1-x64.dll" -Destination build/bin/
 
-      - name: Zip build folder
+      - name: Zip full build folder
         shell: powershell
         run: |
-          Compress-Archive -Path build/* -DestinationPath aseprite-win-${{ github.event.inputs.version }}.zip -Force
+          Compress-Archive -Path build/* -DestinationPath aseprite-win-full-${{ github.event.inputs.version }}.zip -Force
+
+      - name: Zip minimal bin folder
+        shell: powershell
+        run: |
+          Compress-Archive -Path build/bin/* -DestinationPath aseprite-win-bin-${{ github.event.inputs.version }}.zip -Force
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -81,6 +86,8 @@ jobs:
           name: Aseprite v${{ github.event.inputs.version }}
           draft: false
           prerelease: false
-          files: aseprite-win-${{ github.event.inputs.version }}.zip
+          files: |
+            aseprite-win-full-${{ github.event.inputs.version }}.zip
+            aseprite-win-${{ github.event.inputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
